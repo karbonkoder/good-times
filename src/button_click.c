@@ -12,6 +12,10 @@ static GRect view_grect[3];
 static int model_good_times[SIZE];
 static int model_bad_times[SIZE];
 
+#define BUFFER_SIZE 100
+static char buffer_good[BUFFER_SIZE];
+static char buffer_bad[BUFFER_SIZE];
+
 static void model_add(int* model, int value) {
   for(int i = SIZE - 1; i > 0; i--) {
     model[i] = model[i-1];
@@ -20,12 +24,47 @@ static void model_add(int* model, int value) {
   model[0] = value;
 }
 
-static void view_render_model(TextLayer *text_layer_view, int* model) {
-  // build dynamic string out of model
-  if (model == model_good_times)
-    text_layer_set_text(text_layer_view, "GOOD");
+// apparently itoa isn't in sdk. http://forums.getpebble.com/discussion/comment/29591/
+static char *itoa(int num) {
+  static char buff[20] = {};
+  int i = 0, temp_num = num, length = 0;
+  char *string = buff;
+  if(num >= 0) {
+    // count how many characters in the number
+    while(temp_num) {
+      temp_num /= 10;
+      length++;
+    }
+
+    // assign the number to the buffer starting at the end of the
+    // number and going to the begining since we are doing the
+    // integer to character conversion on the last number in the
+    // sequence
+    for(i = 0; i < length; i++) {
+      buff[(length-1)-i] = '0' + (num % 10);
+      num /= 10;
+    }
+
+    buff[i] = '\0'; // can't forget the null byte to properly end our string
+    }
   else
-    text_layer_set_text(text_layer_view, "BAD");
+    return "Unsupported Number";
+
+  return string;
+}
+
+static void view_render_model(TextLayer *text_layer_view, int* model, char* buffer) {
+  // build dynamic string out of model
+  char* value;
+  buffer[0] = '\0';
+
+  for (int i = 0; i < SIZE; i++) {
+    value = itoa(model[i]);
+    strcat(buffer, value);
+    strcat(buffer, "\n"); // TODO need to check BUFFER_SIZE
+  }
+
+  text_layer_set_text(text_layer_view, buffer);
 }
 
 static void view_set_grect(GRect bounds) {
@@ -40,18 +79,20 @@ static void view_set_grect(GRect bounds) {
 }
 
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
-  text_layer_set_text(text_layer, "Select");
+  text_layer_set_text(text_layer, "Middle");
 }
 
 static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
-  model_add(model_good_times, 1);
-  view_render_model(text_layer_good_times, model_good_times);
+  static int called = 0;
+  model_add(model_good_times, called++);
+  view_render_model(text_layer_good_times, model_good_times, buffer_good);
   text_layer_set_text(text_layer, "Up");
 }
 
 static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
-  model_add(model_bad_times, 2);
-  view_render_model(text_layer_bad_times, model_bad_times);
+  static int called = 0;
+  model_add(model_bad_times, called++);
+  view_render_model(text_layer_bad_times, model_bad_times, buffer_bad);
   text_layer_set_text(text_layer, "Down");
 }
 
