@@ -2,10 +2,11 @@
 
 /*
 TODO
+  Persistant storage for models
   Maximize real estate
-    25x4 for good and same for bad.
-    4 per line. 011020
-    16 total values can be fitted
+    Intelligent compaction
+      if anything changes then display full 6 chars else 4 or 2 is fine. Add space for clarity.
+      need to keep running counter of values.
   Store current time.
     Update this after every minute.
   Good and Bad are almost similar. Refactor code and make it DRY
@@ -34,6 +35,37 @@ static time_t model_good_times[SIZE];
 static int model_good_size = 0;
 static time_t model_bad_times[SIZE];
 static int model_bad_size = 0;
+
+#define MODEL_GOOD_KEY 1
+#define MODEL_BAD_KEY 2
+#define MODEL_GOOD_SIZE_KEY 3
+#define MODEL_BAD_SIZE_KEY 4
+
+static void update_models() {
+  if (persist_exists(MODEL_GOOD_KEY)) {
+    persist_read_data(MODEL_GOOD_KEY, &model_good_times, sizeof(model_good_times));
+  }
+
+  if (persist_exists(MODEL_BAD_KEY)) {
+    persist_read_data(MODEL_BAD_KEY, &model_bad_times, sizeof(model_bad_times));
+  }
+
+  if (persist_exists(MODEL_GOOD_SIZE_KEY)) {
+    model_good_size = persist_read_int(MODEL_GOOD_SIZE_KEY);
+  }
+
+  if (persist_exists(MODEL_BAD_SIZE_KEY)) {
+    model_bad_size = persist_read_int(MODEL_BAD_SIZE_KEY);
+  }
+}
+
+static void save_models() {
+  persist_write_data(MODEL_GOOD_KEY, &model_good_times, sizeof(model_good_times));
+  persist_write_data(MODEL_BAD_KEY, &model_bad_times, sizeof(model_bad_times));
+
+  persist_write_int(MODEL_GOOD_SIZE_KEY, model_good_size);
+  persist_write_int(MODEL_BAD_SIZE_KEY, model_bad_size);
+}
 
 // TODO rotating log. Use modular maths to avoid shifiting
 static void model_add(time_t* model, time_t value, int* size) {
@@ -125,6 +157,10 @@ static void window_load(Window *window) {
   text_layer_set_text(text_layer_bad_times, "Bad goes here");
   text_layer_set_text_alignment(text_layer_bad_times, GTextAlignmentCenter);
   layer_add_child(window_layer, text_layer_get_layer(text_layer_bad_times));
+
+  update_time();
+  view_render_model(text_layer_good_times, model_good_times, model_good_size, buffer_good);
+  view_render_model(text_layer_bad_times, model_bad_times, model_bad_size, buffer_bad);
 }
 
 static void window_unload(Window *window) {
@@ -134,6 +170,7 @@ static void window_unload(Window *window) {
 }
 
 static void init(void) {
+  update_models();
   window = window_create();
   window_set_click_config_provider(window, click_config_provider);
   window_set_window_handlers(window, (WindowHandlers) {
@@ -145,6 +182,7 @@ static void init(void) {
 }
 
 static void deinit(void) {
+  save_models();
   window_destroy(window);
 }
 
