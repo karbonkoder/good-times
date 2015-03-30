@@ -2,6 +2,10 @@
 
 /*
 TODO
+  Maximize real estate
+    25x4 for good and same for bad.
+    4 per line. 011020
+    16 total values can be fitted
   Store current time.
     Update this after every minute.
   Good and Bad are almost similar. Refactor code and make it DRY
@@ -20,7 +24,7 @@ static char buffer_good[BUFFER_SIZE];
 static char buffer_bad[BUFFER_SIZE];
 
 // Model
-#define SIZE 100
+#define SIZE 17
 static time_t model_good_times[SIZE];
 static int model_good_size = 0;
 static time_t model_bad_times[SIZE];
@@ -28,27 +32,30 @@ static int model_bad_size = 0;
 
 // TODO rotating log. Use modular maths to avoid shifiting
 static void model_add(time_t* model, time_t value, int* size) {
-  if (*size >= SIZE)
-    *size = SIZE;
+  if (*size + 1 >= SIZE)
+    *size = SIZE - 1;
 
-  for(int i = *size - 1; i > 0; i--) {
+  for(int i = *size; i > 0; i--) {
     model[i] = model[i-1];
   }
 
   model[0] = value;
-  if (*size < SIZE)
+  if (*size + 1 < SIZE)
     (*size)++;
 }
 
 static void view_render_model(TextLayer *text_layer_view, time_t* model, int size, char* buffer) {
-  static char tm_buffer[30];
+  static char tm_buffer[10];
   struct tm *tick_time;
   buffer[0] = '\0';
 
   for (int i = 0; i < size; i++) {
     tick_time = localtime(&model[i]);
-    strftime(tm_buffer, 30, "%a %H:%M:%S\n", tick_time);
+    strftime(tm_buffer, 10, "%H%M%S", tick_time);
     strcat(buffer, tm_buffer);
+    if ((i + 1) % 4 == 0) {
+      strcat(buffer, "\n");
+    }
   }
 
   text_layer_set_text(text_layer_view, buffer);
